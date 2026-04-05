@@ -3,136 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steam Endless Sales</title>
+    <title>Steam Live Streamer</title>
     <style>
-        :root { --bg: #0b0e14; --card: #1b2838; --blue: #66c0f4; --green: #a3d200; --gold: #ffd700; }
+        :root { --bg: #0f111a; --card: #1a1d29; --blue: #66c0f4; --green: #a3d200; }
         body { font-family: 'Motiva Sans', sans-serif; background: var(--bg); color: #c6d4df; margin: 0; padding: 0; }
         
-        .nav-bar { position: sticky; top: 0; background: #171a21; padding: 15px 20px; z-index: 100; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 20px; }
+        .header { position: sticky; top: 0; background: #171a21; padding: 15px 20px; z-index: 100; border-bottom: 2px solid var(--blue); }
+        .controls { display: flex; align-items: center; gap: 15px; max-width: 1200px; margin: 0 auto; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
         
         .card { 
-            background: var(--card); border-radius: 4px; overflow: hidden; 
-            text-decoration: none; color: inherit; transition: 0.2s; 
-            border: 1px solid #2a475e; display: flex; flex-direction: column;
+            background: var(--card); border-radius: 8px; overflow: hidden; 
+            text-decoration: none; color: inherit; transition: 0.25s; 
+            border: 1px solid #2a475e; position: relative;
         }
-        .card:hover { transform: scale(1.03); border-color: var(--blue); z-index: 10; }
+        .card:hover { transform: translateY(-5px); border-color: var(--blue); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .card img { width: 100%; height: 120px; object-fit: cover; }
         
-        .card-info { padding: 12px; flex-grow: 1; }
-        .name { font-size: 0.95em; font-weight: bold; color: #fff; margin-bottom: 10px; height: 2.4em; overflow: hidden; }
+        .card-body { padding: 12px; }
+        .game-name { font-size: 0.9em; font-weight: bold; color: #fff; margin-bottom: 8px; height: 2.4em; overflow: hidden; display: block; }
         
-        .price-tag { display: flex; align-items: center; background: #000; width: fit-content; border-radius: 3px; }
-        .pct { background: #4c6b22; color: var(--green); padding: 4px 8px; font-weight: bold; }
-        .pct.epic { background: #821f1f; color: #fff; animation: pulse 2s infinite; }
-        
-        .price-vals { padding: 0 8px; font-size: 0.9em; }
-        .old { text-decoration: line-through; color: #7092a5; font-size: 0.8em; }
-        .new { color: #fff; font-weight: bold; }
+        .price-box { display: flex; align-items: center; background: #000; border-radius: 4px; width: fit-content; overflow: hidden; }
+        .discount-tag { background: #4c6b22; color: var(--green); padding: 4px 8px; font-weight: bold; font-size: 1.1em; }
+        .price-text { padding: 0 8px; text-align: right; }
+        .p-old { text-decoration: line-through; color: #7092a5; font-size: 0.75em; }
+        .p-new { color: #fff; font-weight: bold; font-size: 0.95em; }
 
-        .loader-trigger { height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: var(--blue); }
+        .log-status { font-size: 0.8em; color: var(--blue); margin-top: 5px; }
+        #loader { text-align: center; padding: 40px; color: var(--blue); font-weight: bold; }
         
-        select, input { background: #2a475e; color: white; border: 1px solid var(--blue); padding: 8px; border-radius: 4px; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        
-        .best-deal { box-shadow: 0 0 15px rgba(163, 210, 0, 0.2); border-color: var(--green); }
+        select, input { background: #232635; color: white; border: 1px solid #3d445d; padding: 8px 12px; border-radius: 5px; }
+        .best-deal { border-color: var(--green); }
+        .best-deal::after { content: '★ ВЫГОДНО'; position: absolute; top: 5px; left: 5px; background: var(--green); color: #000; font-size: 0.6em; font-weight: bold; padding: 2px 5px; border-radius: 3px; }
     </style>
 </head>
 <body>
 
-<div class="nav-bar">
-    <h2 style="margin:0; font-size: 1.2em; color: var(--blue)">Steam Infinite</h2>
-    <select id="region" onchange="resetAndLoad()">
-        <option value="ru">🇷🇺 Россия</option>
-        <option value="kz">🇰🇿 Казахстан</option>
-    </select>
-    <input type="text" id="search" placeholder="Поиск в потоке..." oninput="filterCards()">
-    <div id="counter" style="font-size: 0.8em; color: #88a6b9">Загружено: 0</div>
+<div class="header">
+    <div class="controls">
+        <h2 style="margin:0; color:white; font-size: 1.1em;">SteamStream</h2>
+        <select id="region" onchange="resetGrid()">
+            <option value="ru">Россия (RUB)</option>
+            <option value="kz">Казахстан (KZT)</option>
+        </select>
+        <input type="text" id="search" placeholder="Поиск в подгруженном..." oninput="filterItems()" style="flex-grow:1">
+        <div id="counter">Игр: 0</div>
+    </div>
+    <div id="log" class="log-status" style="max-width:1200px; margin: 0 auto;">Инициализация...</div>
 </div>
 
 <div id="grid" class="grid"></div>
-<div id="load-trigger" class="loader-trigger">Загружаем еще игры...</div>
+<div id="loader">Готов к загрузке...</div>
 
 <script>
-    let page = 1;
-    let isLoading = false;
-    let allGames = [];
-    const proxy = "https://api.allorigins.win/get?url=";
+    let offset = 0;
+    let isFetching = false;
+    let totalLoaded = 0;
+    const proxies = [
+        "https://api.allorigins.win/get?url=",
+        "https://corsproxy.io/?",
+        "https://api.codetabs.com/v1/proxy?quest="
+    ];
+    let proxyIndex = 0;
 
-    async function loadGames() {
-        if (isLoading) return;
-        isLoading = true;
-        document.getElementById('load-trigger').innerText = "Ищем скидки в Steam...";
-
+    async function fetchData() {
+        if (isFetching) return;
+        isFetching = true;
+        
         const region = document.getElementById('region').value;
-        // Используем поиск Steam с фильтром по скидкам (specials=1)
-        const steamSearchUrl = `https://store.steampowered.com/search/results/?query&start=${(page-1)*25}&count=25&dynamic_data=&sort_by=_ASC&snr=1_7_7_2300_7&specials=1&cc=${region}&l=russian&infinite=1`;
+        const log = document.getElementById('log');
+        const loader = document.getElementById('loader');
+        
+        loader.innerText = "⏳ Загрузка новой порции...";
+        log.innerText = `Запрос к Steam (Смещение: ${offset}, Прокси: ${proxyIndex + 1})...`;
+
+        // Прямой URL поиска Steam со скидками
+        const steamUrl = `https://store.steampowered.com/search/results/?query&start=${offset}&count=50&specials=1&cc=${region}&l=russian&infinite=1`;
 
         try {
-            const resp = await fetch(proxy + encodeURIComponent(steamSearchUrl));
-            const data = await resp.json();
+            const currentProxy = proxies[proxyIndex];
+            const response = await fetch(currentProxy + encodeURIComponent(steamUrl));
+            const rawData = await response.json();
             
-            // Steam возвращает HTML в поиске, нам нужно вытащить данные
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(data.contents, 'text/html');
-            const items = doc.querySelectorAll('a.search_result_row');
+            // Обработка разных форматов ответа прокси
+            const content = rawData.contents || rawData;
+            const htmlString = typeof content === 'string' ? content : (content.results_html || "");
 
-            if (items.length === 0) {
-                document.getElementById('load-trigger').innerText = "Все игры загружены.";
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const rows = doc.querySelectorAll('a.search_result_row');
+
+            if (rows.length === 0) {
+                proxyIndex = (proxyIndex + 1) % proxies.length;
+                log.innerText = "Пустой ответ. Меняю прокси...";
+                isFetching = false;
+                if(proxyIndex !== 0) fetchData(); // Пробуем другой прокси
                 return;
             }
 
-            items.forEach(item => {
-                const id = item.getAttribute('data-ds-appid');
-                const name = item.querySelector('.title').innerText;
-                const img = item.querySelector('img').src;
-                const discount = item.querySelector('.search_discount span')?.innerText || '';
-                const oldP = item.querySelector('.search_price span strike')?.innerText || '';
-                const newP = item.querySelector('.search_price')?.innerText.replace(oldP, '').trim() || '';
+            rows.forEach(row => {
+                const title = row.querySelector('.title').innerText;
+                const img = row.querySelector('img').src;
+                const discount = row.querySelector('.search_discount span')?.innerText;
+                const oldPrice = row.querySelector('.search_price span strike')?.innerText;
+                const fullPriceText = row.querySelector('.search_price')?.innerText || "";
+                const newPrice = fullPriceText.replace(oldPrice || "", "").trim();
 
                 if (discount) {
-                    const gameObj = { id, name, img, discount, oldP, newP, url: item.href };
-                    allGames.push(gameObj);
-                    renderCard(gameObj);
+                    renderCard({ title, img, discount, oldPrice, newPrice, url: row.href });
+                    totalLoaded++;
                 }
             });
 
-            page++;
-            isLoading = false;
-            document.getElementById('counter').innerText = `Загружено: ${allGames.length}`;
-            document.getElementById('load-trigger').innerText = "Прокрутите вниз, чтобы загрузить больше";
-            
-            // Если экран не заполнен, грузим следующую пачку сразу
-            if (document.body.scrollHeight <= window.innerHeight) loadGames();
+            offset += 50;
+            isFetching = false;
+            document.getElementById('counter').innerText = `Игр: ${totalLoaded}`;
+            log.innerText = "Данные успешно получены. Листайте вниз.";
+            loader.innerText = "▼ Прокрутите для загрузки еще";
 
-        } catch (e) {
-            console.error(e);
-            document.getElementById('load-trigger').innerText = "Ошибка API. Пробуем снова...";
-            isLoading = false;
-            setTimeout(loadGames, 3000);
+            // Если мало игр на экране, догружаем
+            if (document.body.scrollHeight <= window.innerHeight) fetchData();
+
+        } catch (err) {
+            log.innerText = "Ошибка сети. Пробую сменить прокси...";
+            proxyIndex = (proxyIndex + 1) % proxies.length;
+            isFetching = false;
+            setTimeout(fetchData, 2000);
         }
     }
 
     function renderCard(g) {
         const grid = document.getElementById('grid');
         const discValue = parseInt(g.discount.replace(/[^0-9]/g, ''));
-        const isEpic = discValue >= 80;
+        const isBest = discValue >= 75;
 
         const card = document.createElement('a');
         card.href = g.url;
         card.target = "_blank";
-        card.className = `card ${isEpic ? 'best-deal' : ''}`;
-        card.setAttribute('data-name', g.name.toLowerCase());
-        
+        card.className = `card ${isBest ? 'best-deal' : ''}`;
         card.innerHTML = `
             <img src="${g.img}" loading="lazy">
-            <div class="card-info">
-                <div class="name">${g.name}</div>
-                <div class="price-tag">
-                    <div class="pct ${isEpic ? 'epic' : ''}">${g.discount}</div>
-                    <div class="price-vals">
-                        <div class="old">${g.oldP}</div>
-                        <div class="new">${g.newP}</div>
+            <div class="card-body">
+                <span class="game-name">${g.title}</span>
+                <div class="price-box">
+                    <div class="discount-tag">${g.discount}</div>
+                    <div class="price-text">
+                        <div class="p-old">${g.oldPrice || ''}</div>
+                        <div class="p-new">${g.newPrice}</div>
                     </div>
                 </div>
             </div>
@@ -140,29 +158,30 @@
         grid.appendChild(card);
     }
 
-    function filterCards() {
-        const query = document.getElementById('search').value.toLowerCase();
-        document.querySelectorAll('.card').forEach(card => {
-            const name = card.getAttribute('data-name');
-            card.style.display = name.includes(query) ? 'flex' : 'none';
+    function resetGrid() {
+        offset = 0;
+        totalLoaded = 0;
+        document.getElementById('grid').innerHTML = '';
+        document.getElementById('counter').innerText = `Игр: 0`;
+        fetchData();
+    }
+
+    function filterItems() {
+        const q = document.getElementById('search').value.toLowerCase();
+        document.querySelectorAll('.card').forEach(c => {
+            const name = c.querySelector('.game-name').innerText.toLowerCase();
+            c.style.display = name.includes(q) ? 'block' : 'none';
         });
     }
 
-    function resetAndLoad() {
-        allGames = [];
-        page = 1;
-        document.getElementById('grid').innerHTML = '';
-        loadGames();
-    }
-
-    // Следим за скроллом
-    window.onscroll = function() {
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
-            loadGames();
+    // Бесконечный скролл
+    window.onscroll = () => {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 800) {
+            fetchData();
         }
     };
 
-    loadGames();
+    fetchData();
 </script>
 </body>
 </html>
