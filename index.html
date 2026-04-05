@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Price Checker — Live</title>
+    <style>
+        :root {
+            --steam-blue: #1b2838;
+            --steam-light-blue: #66c0f4;
+            --steam-green: #a3d200;
+            --steam-dark: #171a21;
+        }
+        body {
+            font-family: 'Motiva Sans', Arial, sans-serif;
+            background-color: var(--steam-blue);
+            color: #c6d4df;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #36546b;
+            margin-bottom: 30px;
+        }
+        h1 { color: #fff; font-size: 24px; margin: 0; }
+        .region-selector select {
+            background: var(--steam-dark);
+            color: #fff;
+            border: 1px solid var(--steam-light-blue);
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid transparent;
+            transition: 0.2s;
+        }
+        .card:hover { border-color: var(--steam-light-blue); background: rgba(0, 0, 0, 0.6); }
+        .card img { width: 100%; display: block; }
+        .card-content { padding: 15px; }
+        .game-title { color: #fff; font-size: 18px; margin: 0 0 10px 0; font-weight: normal; }
+        .price-container {
+            display: flex;
+            align-items: center;
+            background: #000;
+            width: fit-content;
+            padding: 2px;
+            border-radius: 2px;
+        }
+        .discount-pct {
+            background: #4c6b22;
+            color: var(--steam-green);
+            padding: 4px 8px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .price-details { padding: 0 10px; text-align: right; }
+        .old-price { color: #7092a5; text-decoration: line-through; font-size: 12px; }
+        .final-price { color: #fff; font-size: 15px; }
+        .loader { text-align: center; padding: 50px; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Steam Real Prices</h1>
+        <div class="region-selector">
+            <select id="regionSelect" onchange="updatePrices()">
+                <option value="ru">🇷🇺 Россия (RUB)</option>
+                <option value="kz">🇰🇿 Казахстан (KZT)</option>
+                <option value="us">🇺🇸 США (USD)</option>
+            </select>
+        </div>
+    </header>
+
+    <div id="loader" class="loader">Получение актуальных данных из Steam...</div>
+    <div id="gamesGrid" class="grid"></div>
+</div>
+
+<script>
+    // AppID игр для теста (включая Runaway: A Twist of Fate)
+    const appIds = [58510, 1091500, 1245620, 292030, 1174180, 1086940];
+
+    async function updatePrices() {
+        const region = document.getElementById('regionSelect').value;
+        const grid = document.getElementById('gamesGrid');
+        const loader = document.getElementById('loader');
+        
+        grid.innerHTML = '';
+        loader.style.display = 'block';
+
+        // Используем AllOrigins как прокси для обхода CORS на GitHub Pages
+        const proxy = "https://api.allorigins.win/get?url=";
+
+        for (const id of appIds) {
+            try {
+                const apiURL = `https://store.steampowered.com/api/appdetails?appids=${id}&cc=${region}&l=russian`;
+                const response = await fetch(proxy + encodeURIComponent(apiURL));
+                const wrapper = await response.json();
+                const data = JSON.parse(wrapper.contents)[id];
+
+                if (data.success && data.data.price_overview) {
+                    const info = data.data;
+                    const price = info.price_overview;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <img src="${info.header_image}" alt="${info.name}">
+                        <div class="card-content">
+                            <h3 class="game-title">${info.name}</h3>
+                            <div class="price-container">
+                                ${price.discount_percent > 0 ? `<div class="discount-pct">-${price.discount_percent}%</div>` : ''}
+                                <div class="price-details">
+                                    ${price.discount_percent > 0 ? `<div class="old-price">${price.initial_formatted}</div>` : ''}
+                                    <div class="final-price">${price.final_formatted}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                }
+            } catch (err) {
+                console.error("Ошибка загрузки ID " + id, err);
+            }
+        }
+        loader.style.display = 'none';
+    }
+
+    // Инициализация при загрузке
+    updatePrices();
+</script>
+
+</body>
+</html>
