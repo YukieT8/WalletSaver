@@ -3,56 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steam Pro Tracker</title>
+    <title>Steam Price Tracker - Stable Edition</title>
     <style>
-        :root { --bg: #1b2838; --card: #2a475e; --blue: #66c0f4; --green: #a3d200; }
+        :root { --bg: #1b2838; --card: #2a475e; --blue: #66c0f4; --green: #a3d200; --red: #ff4757; }
         body { font-family: 'Motiva Sans', sans-serif; background: var(--bg); color: #c6d4df; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
-        
         header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 30px; border-bottom: 1px solid #36546b; padding-bottom: 20px; }
-        
         .controls { display: flex; gap: 10px; flex-grow: 1; justify-content: flex-end; }
-        input, select { background: #171a21; color: white; border: 1px solid var(--blue); padding: 10px; border-radius: 4px; outline: none; }
-        input { flex-grow: 1; max-width: 300px; }
-
+        input, select, button { background: #171a21; color: white; border: 1px solid var(--blue); padding: 10px; border-radius: 4px; outline: none; }
+        button { cursor: pointer; background: var(--card); font-weight: bold; }
+        button:hover { background: var(--blue); color: var(--bg); }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        
         .card { background: rgba(0,0,0,0.4); border-radius: 4px; overflow: hidden; border: 1px solid transparent; transition: 0.2s; display: flex; flex-direction: column; }
-        .card:hover { border-color: var(--blue); transform: scale(1.02); }
+        .card:hover { border-color: var(--blue); transform: translateY(-3px); }
         .card img { width: 100%; height: 130px; object-fit: cover; }
-        .card-body { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
-        
+        .card-body { padding: 15px; flex-grow: 1; }
         .price-block { display: flex; align-items: center; background: #000; width: fit-content; border-radius: 2px; margin-top: 10px; }
-        .pct { background: #4c6b22; color: var(--green); padding: 5px 8px; font-weight: bold; font-size: 1.2em; }
+        .pct { background: #4c6b22; color: var(--green); padding: 5px 8px; font-weight: bold; }
         .vals { padding: 0 10px; text-align: right; }
         .old { text-decoration: line-through; font-size: 0.85em; color: #7092a5; }
-        .final { color: white; font-weight: bold; font-size: 1.1em; }
-
-        .loader { text-align: center; font-size: 1.2em; color: var(--blue); padding: 40px; }
+        .final { color: white; font-weight: bold; }
+        .status-area { text-align: center; padding: 40px; }
+        .error-msg { color: var(--red); margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>Мгновенные скидки Steam</h1>
+        <h1>Steam Tracker Live</h1>
         <div class="controls">
-            <input type="text" id="searchInput" placeholder="Поиск по названию..." oninput="renderGames()">
+            <input type="text" id="searchInput" placeholder="Поиск..." oninput="renderGames()">
             <select id="region" onchange="fetchData(true)">
-                <option value="ru">Россия (RUB)</option>
-                <option value="kz">Казахстан (KZT)</option>
+                <option value="ru">🇷🇺 Россия</option>
+                <option value="kz">🇰🇿 Казахстан</option>
             </select>
+            <button onclick="fetchData(true)">🔄 Обновить</button>
         </div>
     </header>
 
-    <div id="status" class="loader">Синхронизация с API...</div>
+    <div id="status" class="status-area">Загрузка...</div>
     <div id="grid" class="grid"></div>
 </div>
 
 <script>
-    const appIds = [58510, 1245620, 1091500, 292030, 1174180, 1086940, 2050650, 1966720, 2358720, 2195250, 489830, 1446780];
-    const proxy = "https://api.allorigins.win/get?url=";
+    const appIds = [58510, 1245620, 1091500, 292030, 1174180, 1086940, 2050650, 1966720, 2358720, 2195250, 489830, 1446780, 271590, 570, 440];
+    
+    // Список прокси-серверов для надежности
+    const proxies = [
+        "https://api.allorigins.win/get?url=",
+        "https://corsproxy.io/?",
+        "https://api.codetabs.com/v1/proxy?quest="
+    ];
+    
+    let currentProxyIndex = 0;
     let cachedGames = [];
+
+    async function fetchWithRetry(url) {
+        // Пробуем каждый прокси по очереди
+        for (let i = 0; i < proxies.length; i++) {
+            try {
+                const proxyUrl = proxies[i] + encodeURIComponent(url);
+                const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+                const json = await resp.json();
+                
+                // AllOrigins возвращает данные в поле .contents, другие могут сразу в корне
+                const dataStr = json.contents || json;
+                return typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
+            } catch (e) {
+                console.warn(`Прокси ${i} не сработал, пробуем следующий...`);
+            }
+        }
+        throw new Error("Все прокси-серверы недоступны");
+    }
 
     async function fetchData(force = false) {
         const region = document.getElementById('region').value;
@@ -60,42 +83,36 @@
         const grid = document.getElementById('grid');
         
         const cacheKey = `steam_cache_${region}`;
-        const cached = localStorage.getItem(cacheKey);
-        
-        if (cached && !force) {
-            const parsed = JSON.parse(cached);
-            if (Date.now() - parsed.time < 900000) { // 15 минут
-                cachedGames = parsed.data;
-                renderGames();
-                return;
+        if (!force) {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Date.now() - parsed.time < 600000) { // 10 минут
+                    cachedGames = parsed.data;
+                    renderGames();
+                    return;
+                }
             }
         }
 
-        status.style.display = 'block';
+        status.innerHTML = "Синхронизация со Steam...";
         grid.innerHTML = '';
 
         try {
-            const promises = appIds.map(async (id) => {
-                const apiReq = `https://store.steampowered.com/api/appdetails?appids=${id}&cc=${region}&l=russian`;
-                const resp = await fetch(proxy + encodeURIComponent(apiReq));
-                const json = await resp.json();
-                const game = JSON.parse(json.contents)[id];
-                return game && game.success ? game.data : null;
-            });
+            const results = await Promise.all(appIds.map(async (id) => {
+                const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${id}&cc=${region}&l=russian`;
+                const data = await fetchWithRetry(steamUrl);
+                return data && data[id] && data[id].success ? data[id].data : null;
+            }));
 
-            const results = await Promise.all(promises);
             cachedGames = results
                 .filter(g => g && g.price_overview)
                 .sort((a, b) => b.price_overview.discount_percent - a.price_overview.discount_percent);
 
-            localStorage.setItem(cacheKey, JSON.stringify({
-                time: Date.now(),
-                data: cachedGames
-            }));
-
+            localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: cachedGames }));
             renderGames();
         } catch (e) {
-            status.innerText = "Ошибка доступа к API. Попробуйте обновить страницу.";
+            status.innerHTML = `<div class="error-msg">Ошибка доступа к API Steam.</div><button onclick="fetchData(true)">Попробовать снова</button>`;
         }
     }
 
@@ -111,7 +128,7 @@
 
         if (filtered.length === 0) {
             status.style.display = 'block';
-            status.innerText = "Игр со скидками не найдено.";
+            status.innerHTML = "Игр со скидками в этом списке сейчас нет.";
             return;
         }
 
