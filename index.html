@@ -3,157 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steam Price Tracker - Stable Edition</title>
+    <title>Steam Endless Sales</title>
     <style>
-        :root { --bg: #1b2838; --card: #2a475e; --blue: #66c0f4; --green: #a3d200; --red: #ff4757; }
-        body { font-family: 'Motiva Sans', sans-serif; background: var(--bg); color: #c6d4df; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 30px; border-bottom: 1px solid #36546b; padding-bottom: 20px; }
-        .controls { display: flex; gap: 10px; flex-grow: 1; justify-content: flex-end; }
-        input, select, button { background: #171a21; color: white; border: 1px solid var(--blue); padding: 10px; border-radius: 4px; outline: none; }
-        button { cursor: pointer; background: var(--card); font-weight: bold; }
-        button:hover { background: var(--blue); color: var(--bg); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .card { background: rgba(0,0,0,0.4); border-radius: 4px; overflow: hidden; border: 1px solid transparent; transition: 0.2s; display: flex; flex-direction: column; }
-        .card:hover { border-color: var(--blue); transform: translateY(-3px); }
-        .card img { width: 100%; height: 130px; object-fit: cover; }
-        .card-body { padding: 15px; flex-grow: 1; }
-        .price-block { display: flex; align-items: center; background: #000; width: fit-content; border-radius: 2px; margin-top: 10px; }
-        .pct { background: #4c6b22; color: var(--green); padding: 5px 8px; font-weight: bold; }
-        .vals { padding: 0 10px; text-align: right; }
-        .old { text-decoration: line-through; font-size: 0.85em; color: #7092a5; }
-        .final { color: white; font-weight: bold; }
-        .status-area { text-align: center; padding: 40px; }
-        .error-msg { color: var(--red); margin-bottom: 10px; }
+        :root { --bg: #0b0e14; --card: #1b2838; --blue: #66c0f4; --green: #a3d200; --gold: #ffd700; }
+        body { font-family: 'Motiva Sans', sans-serif; background: var(--bg); color: #c6d4df; margin: 0; padding: 0; }
+        
+        .nav-bar { position: sticky; top: 0; background: #171a21; padding: 15px 20px; z-index: 100; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 20px; }
+        
+        .card { 
+            background: var(--card); border-radius: 4px; overflow: hidden; 
+            text-decoration: none; color: inherit; transition: 0.2s; 
+            border: 1px solid #2a475e; display: flex; flex-direction: column;
+        }
+        .card:hover { transform: scale(1.03); border-color: var(--blue); z-index: 10; }
+        .card img { width: 100%; height: 120px; object-fit: cover; }
+        
+        .card-info { padding: 12px; flex-grow: 1; }
+        .name { font-size: 0.95em; font-weight: bold; color: #fff; margin-bottom: 10px; height: 2.4em; overflow: hidden; }
+        
+        .price-tag { display: flex; align-items: center; background: #000; width: fit-content; border-radius: 3px; }
+        .pct { background: #4c6b22; color: var(--green); padding: 4px 8px; font-weight: bold; }
+        .pct.epic { background: #821f1f; color: #fff; animation: pulse 2s infinite; }
+        
+        .price-vals { padding: 0 8px; font-size: 0.9em; }
+        .old { text-decoration: line-through; color: #7092a5; font-size: 0.8em; }
+        .new { color: #fff; font-weight: bold; }
+
+        .loader-trigger { height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: var(--blue); }
+        
+        select, input { background: #2a475e; color: white; border: 1px solid var(--blue); padding: 8px; border-radius: 4px; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        
+        .best-deal { box-shadow: 0 0 15px rgba(163, 210, 0, 0.2); border-color: var(--green); }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h1>Steam Tracker Live</h1>
-        <div class="controls">
-            <input type="text" id="searchInput" placeholder="Поиск..." oninput="renderGames()">
-            <select id="region" onchange="fetchData(true)">
-                <option value="ru">🇷🇺 Россия</option>
-                <option value="kz">🇰🇿 Казахстан</option>
-            </select>
-            <button onclick="fetchData(true)">🔄 Обновить</button>
-        </div>
-    </header>
-
-    <div id="status" class="status-area">Загрузка...</div>
-    <div id="grid" class="grid"></div>
+<div class="nav-bar">
+    <h2 style="margin:0; font-size: 1.2em; color: var(--blue)">Steam Infinite</h2>
+    <select id="region" onchange="resetAndLoad()">
+        <option value="ru">🇷🇺 Россия</option>
+        <option value="kz">🇰🇿 Казахстан</option>
+    </select>
+    <input type="text" id="search" placeholder="Поиск в потоке..." oninput="filterCards()">
+    <div id="counter" style="font-size: 0.8em; color: #88a6b9">Загружено: 0</div>
 </div>
 
+<div id="grid" class="grid"></div>
+<div id="load-trigger" class="loader-trigger">Загружаем еще игры...</div>
+
 <script>
-    const appIds = [58510, 1245620, 1091500, 292030, 1174180, 1086940, 2050650, 1966720, 2358720, 2195250, 489830, 1446780, 271590, 570, 440];
-    
-    // Список прокси-серверов для надежности
-    const proxies = [
-        "https://api.allorigins.win/get?url=",
-        "https://corsproxy.io/?",
-        "https://api.codetabs.com/v1/proxy?quest="
-    ];
-    
-    let currentProxyIndex = 0;
-    let cachedGames = [];
+    let page = 1;
+    let isLoading = false;
+    let allGames = [];
+    const proxy = "https://api.allorigins.win/get?url=";
 
-    async function fetchWithRetry(url) {
-        // Пробуем каждый прокси по очереди
-        for (let i = 0; i < proxies.length; i++) {
-            try {
-                const proxyUrl = proxies[i] + encodeURIComponent(url);
-                const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-                const json = await resp.json();
-                
-                // AllOrigins возвращает данные в поле .contents, другие могут сразу в корне
-                const dataStr = json.contents || json;
-                return typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
-            } catch (e) {
-                console.warn(`Прокси ${i} не сработал, пробуем следующий...`);
-            }
-        }
-        throw new Error("Все прокси-серверы недоступны");
-    }
+    async function loadGames() {
+        if (isLoading) return;
+        isLoading = true;
+        document.getElementById('load-trigger').innerText = "Ищем скидки в Steam...";
 
-    async function fetchData(force = false) {
         const region = document.getElementById('region').value;
-        const status = document.getElementById('status');
-        const grid = document.getElementById('grid');
-        
-        const cacheKey = `steam_cache_${region}`;
-        if (!force) {
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (Date.now() - parsed.time < 600000) { // 10 минут
-                    cachedGames = parsed.data;
-                    renderGames();
-                    return;
-                }
-            }
-        }
-
-        status.innerHTML = "Синхронизация со Steam...";
-        grid.innerHTML = '';
+        // Используем поиск Steam с фильтром по скидкам (specials=1)
+        const steamSearchUrl = `https://store.steampowered.com/search/results/?query&start=${(page-1)*25}&count=25&dynamic_data=&sort_by=_ASC&snr=1_7_7_2300_7&specials=1&cc=${region}&l=russian&infinite=1`;
 
         try {
-            const results = await Promise.all(appIds.map(async (id) => {
-                const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${id}&cc=${region}&l=russian`;
-                const data = await fetchWithRetry(steamUrl);
-                return data && data[id] && data[id].success ? data[id].data : null;
-            }));
+            const resp = await fetch(proxy + encodeURIComponent(steamSearchUrl));
+            const data = await resp.json();
+            
+            // Steam возвращает HTML в поиске, нам нужно вытащить данные
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.contents, 'text/html');
+            const items = doc.querySelectorAll('a.search_result_row');
 
-            cachedGames = results
-                .filter(g => g && g.price_overview)
-                .sort((a, b) => b.price_overview.discount_percent - a.price_overview.discount_percent);
+            if (items.length === 0) {
+                document.getElementById('load-trigger').innerText = "Все игры загружены.";
+                return;
+            }
 
-            localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: cachedGames }));
-            renderGames();
+            items.forEach(item => {
+                const id = item.getAttribute('data-ds-appid');
+                const name = item.querySelector('.title').innerText;
+                const img = item.querySelector('img').src;
+                const discount = item.querySelector('.search_discount span')?.innerText || '';
+                const oldP = item.querySelector('.search_price span strike')?.innerText || '';
+                const newP = item.querySelector('.search_price')?.innerText.replace(oldP, '').trim() || '';
+
+                if (discount) {
+                    const gameObj = { id, name, img, discount, oldP, newP, url: item.href };
+                    allGames.push(gameObj);
+                    renderCard(gameObj);
+                }
+            });
+
+            page++;
+            isLoading = false;
+            document.getElementById('counter').innerText = `Загружено: ${allGames.length}`;
+            document.getElementById('load-trigger').innerText = "Прокрутите вниз, чтобы загрузить больше";
+            
+            // Если экран не заполнен, грузим следующую пачку сразу
+            if (document.body.scrollHeight <= window.innerHeight) loadGames();
+
         } catch (e) {
-            status.innerHTML = `<div class="error-msg">Ошибка доступа к API Steam.</div><button onclick="fetchData(true)">Попробовать снова</button>`;
+            console.error(e);
+            document.getElementById('load-trigger').innerText = "Ошибка API. Пробуем снова...";
+            isLoading = false;
+            setTimeout(loadGames, 3000);
         }
     }
 
-    function renderGames() {
+    function renderCard(g) {
         const grid = document.getElementById('grid');
-        const status = document.getElementById('status');
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const discValue = parseInt(g.discount.replace(/[^0-9]/g, ''));
+        const isEpic = discValue >= 80;
+
+        const card = document.createElement('a');
+        card.href = g.url;
+        card.target = "_blank";
+        card.className = `card ${isEpic ? 'best-deal' : ''}`;
+        card.setAttribute('data-name', g.name.toLowerCase());
         
-        status.style.display = 'none';
-        grid.innerHTML = '';
-
-        const filtered = cachedGames.filter(g => g.name.toLowerCase().includes(searchTerm));
-
-        if (filtered.length === 0) {
-            status.style.display = 'block';
-            status.innerHTML = "Игр со скидками в этом списке сейчас нет.";
-            return;
-        }
-
-        filtered.forEach(game => {
-            const p = game.price_overview;
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <img src="${game.header_image}" loading="lazy">
-                <div class="card-body">
-                    <div style="font-weight:bold; height:44px; overflow:hidden">${game.name}</div>
-                    <div class="price-block">
-                        ${p.discount_percent > 0 ? `<div class="pct">-${p.discount_percent}%</div>` : ''}
-                        <div class="vals">
-                            ${p.discount_percent > 0 ? `<div class="old">${p.initial_formatted}</div>` : ''}
-                            <div class="final">${p.final_formatted}</div>
-                        </div>
+        card.innerHTML = `
+            <img src="${g.img}" loading="lazy">
+            <div class="card-info">
+                <div class="name">${g.name}</div>
+                <div class="price-tag">
+                    <div class="pct ${isEpic ? 'epic' : ''}">${g.discount}</div>
+                    <div class="price-vals">
+                        <div class="old">${g.oldP}</div>
+                        <div class="new">${g.newP}</div>
                     </div>
                 </div>
-            `;
-            grid.appendChild(card);
+            </div>
+        `;
+        grid.appendChild(card);
+    }
+
+    function filterCards() {
+        const query = document.getElementById('search').value.toLowerCase();
+        document.querySelectorAll('.card').forEach(card => {
+            const name = card.getAttribute('data-name');
+            card.style.display = name.includes(query) ? 'flex' : 'none';
         });
     }
 
-    fetchData();
+    function resetAndLoad() {
+        allGames = [];
+        page = 1;
+        document.getElementById('grid').innerHTML = '';
+        loadGames();
+    }
+
+    // Следим за скроллом
+    window.onscroll = function() {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+            loadGames();
+        }
+    };
+
+    loadGames();
 </script>
 </body>
 </html>
